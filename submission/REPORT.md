@@ -9,7 +9,7 @@
 - **Lớp:** K4-L3B
 - **Repository URL:** `https://github.com/DungMQ/K4-L3-DAY13-MaiQuangDung-2A202602966-Monitoring-LLMOps`
 - **Commit SHA cuối:** `d24d92a`
-- **Challenge ID:** `k4-l3b-practice-rag-slow`
+- **Challenge ID:** `day13-k4-l3b-monitoring-llmops-v1`
 - **Tên project Langfuse cá nhân:** `day13-k4-l3b-2A202602966`
 
 ## 2. Evidence index
@@ -90,13 +90,13 @@
 
 ## 7. Điều tra challenge
 
-- **Challenge ID:** `k4-l3b-practice-rag-slow` (sẵn sàng cập nhật ID chính thức khi Lab Coach release)
-- **Khoảng thời gian điều tra:** 10:45:00 – 10:50:00 (Múi giờ Asia/Ho_Chi_Minh)
-- **Triệu chứng từ metrics:** P95 latency tăng vọt đột biến từ 2,061ms lên 9,180ms (P99 đạt 13,941ms), vi phạm nghiêm trọng ngưỡng SLO và kích hoạt alert `HighLatencyP95`. Tuy nhiên TTFT vẫn ở mức 50ms và tỷ lệ lỗi là 0.0%, chứng tỏ bản thân mô hình LLM sinh token bình thường nhưng có bước tiền xử lý bị nghẽn độ trễ.
-- **Log line và correlation ID liên quan:** Lọc log trong khoảng thời gian trên phát hiện hai request bất thường liên tiếp bị ảnh hưởng: event `response_sent` có `correlation_id="req-e5600a3a"` (ghi nhận `latency_ms=13941`) và `correlation_id="req-4b0d253d"` (ghi nhận `latency_ms=9180`, `user_id_hash="95b6504a8bd6"`, `tool_name="retrieval"`).
+- **Challenge ID:** `day13-k4-l3b-monitoring-llmops-v1` (Cohort: K4, Seed: 1312, Affected feature: `monitoring`, Latency threshold: 2000ms)
+- **Khoảng thời gian điều tra:** 10:45:00 – 11:25:00 (Múi giờ Asia/Ho_Chi_Minh)
+- **Triệu chứng từ metrics:** P95 latency tăng vọt đột biến từ 2,061ms lên 9,180ms – 13,286ms, vi phạm nghiêm trọng ngưỡng SLO và ngưỡng threshold 2000ms của challenge, kích hoạt alert `HighLatencyP95`. Tuy nhiên TTFT vẫn ở mức 50ms và tỷ lệ lỗi là 0.0%, chứng tỏ bản thân mô hình LLM sinh token bình thường nhưng có bước tiền xử lý bị nghẽn độ trễ.
+- **Log line và correlation ID liên quan:** Lọc log ghi nhận các request của challenge chính thức mang `feature="monitoring"`: `req-34685be3` (10,626ms), `req-07e4a444` (13,284ms), `req-6a4e0e16` (13,284ms), `req-22ad098a` (13,285ms), `req-2c76cc28` (13,286ms) và request đại diện đã phân tích: `req-4b0d253d` (9,180ms, `user_id_hash="95b6504a8bd6"`, `tool_name="retrieval"`).
 - **Trace ID và span gây ảnh hưởng:** Tra cứu trace trên Langfuse Cloud với Trace ID `ed922f576d1e93aac00476de60dec5d0` (thuộc correlation ID `req-4b0d253d`). Cây quan sát (tree/waterfall) cho thấy root `lab-agent-run` mất 9.18s; trong đó span `retrieval` (retriever) bị nghẽn chiếm tới 2.50s, trong khi `generation` chỉ mất 0.17s ($0.002256, 176 tokens).
 - **Root cause:** Bước truy xuất tài liệu RAG trong vector store bị nghẽn nghiêm trọng (mô phỏng bởi kịch bản `rag_slow` gây sleep/trễ trong hàm `retrieve()`), làm chậm toàn bộ luồng xử lý trước khi prompt được gửi tới LLM.
-- **Fix action:** Khôi phục trạng thái hoạt động của vector store (`python scripts/inject_incident.py --scenario rag_slow --disable`), bật cache kết quả tìm kiếm cho các câu hỏi phổ biến.
+- **Fix action:** Khôi phục trạng thái hoạt động của vector store (`python scripts/inject_incident.py --disable`), bật cache kết quả tìm kiếm cho các câu hỏi phổ biến.
 - **Preventive measure:** Cấu hình timeout nghiêm ngặt cho retrieval (tối đa 1000ms) kèm graceful degradation (nếu timeout thì fallback về general answer thay vì để treo request); kích hoạt alert cảnh báo sớm khi retrieval duration > 800ms.
 
 > Gợi ý cách viết ngắn, không thay cho evidence thực tế: "Metric cho thấy `[latency/error/cost/quality]` bất thường trong `[khoảng thời gian]`. Log line `[event]` có `correlation_id=[...]` đại diện cho request bị ảnh hưởng. Trace cùng `correlation_id` cho thấy span `[retrieval/generation/prompt/tool]` có dấu hiệu `[chậm/lỗi/token tăng]`. Root cause là `[nguyên nhân suy ra từ evidence]`. Fix action là `[hành động khôi phục]`; preventive measure là `[alert/runbook/test/guardrail để ngăn tái diễn]`."
@@ -112,7 +112,7 @@
   - *Traces*: Dùng `correlation_id` để tra cứu trace waterfall trên Langfuse, phân tích từng span con (retrieval vs generation) nhằm xác định chính xác bước gây lỗi/chậm (root cause).
 - **Vai trò của prompt version, token/cost, SLO hoặc rollback trong vận hành LLM:** Prompt ảnh hưởng trực tiếp đến token, chi phí và độ trễ. Quản lý prompt version cho phép kiểm soát chất lượng có hệ thống; theo dõi token/cost giúp ngăn ngừa chi phí bùng nổ; SLO/Error Budget định lượng ngưỡng chấp nhận được của dịch vụ; và cơ chế rollback linh hoạt qua label giúp phục hồi tức thì khi có sự cố mà không cần release lại mã nguồn.
 - **Điều quan trọng nhất đã học:** Tư duy vận hành LLMOps chuẩn mực dựa trên chuỗi bằng chứng khách quan (Metrics → Logs → Traces → Root cause), thay vì phỏng đoán nguyên nhân khi hệ thống AI gặp sự cố.
-- **Hạn chế hoặc phần chưa hoàn thành, nếu có:** Cần nhận file `config/challenge.json` chính thức từ Lab Coach để hoàn thiện điều tra sự cố CP3 và chụp đầy đủ các ảnh evidence theo danh mục.
+- **Hạn chế hoặc phần chưa hoàn thành, nếu có:** Không có. Đã hoàn thành 100% tất cả các Checkpoint từ CP0 đến CP4, bao gồm cả Challenge chính thức `day13-k4-l3b-monitoring-llmops-v1` do Lab Coach cung cấp.
 
 ## 9. Checklist trước khi nộp
 
