@@ -32,6 +32,7 @@ def main() -> None:
     configure_utf8_stdio()
     parser = argparse.ArgumentParser()
     parser.add_argument("--concurrency", type=int, default=1, help="Number of concurrent requests")
+    parser.add_argument("--requests", "--limit", dest="limit", type=int, default=None, help="Số lượng requests muốn gửi")
     parser.add_argument(
         "--challenge",
         action="store_true",
@@ -49,6 +50,8 @@ def main() -> None:
             for line in QUERIES.read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
+    if args.limit:
+        payloads = payloads[:args.limit]
     
     with httpx.Client(timeout=30.0) as client:
         if args.concurrency > 1:
