@@ -8,7 +8,7 @@
 - **MSSV:** 2A202602966
 - **Lớp:** K4-L3B
 - **Repository URL:** `https://github.com/DungMQ/K4-L3-DAY13-MaiQuangDung-2A202602966-Monitoring-LLMOps`
-- **Commit SHA cuối:** (sẽ cập nhật sau commit cuối cùng)
+- **Commit SHA cuối:** `d24d92a`
 - **Challenge ID:** `k4-l3b-practice-rag-slow`
 - **Tên project Langfuse cá nhân:** `day13-k4-l3b-2A202602966`
 
